@@ -1,0 +1,181 @@
+// Sizzle Shift database schema.
+// Game content (restaurants, levels, upgrade tiers) is defined in @sizzle/shared
+// and synced into these tables by the seed script and on server start.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  email        String?   @unique
+  passwordHash String?
+  isGuest      Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  lastLoginAt  DateTime?
+
+  profile  PlayerProfile?
+  sessions Session[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PlayerProfile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  coins                Int      @default(0)
+  totalStars           Int      @default(0)
+  totalLevelsCompleted Int      @default(0)
+  totalCoinsEarned     Int      @default(0)
+  totalCustomersServed Int      @default(0)
+  totalCustomersLost   Int      @default(0)
+  totalGamesPlayed     Int      @default(0)
+  bestCombo            Int      @default(0)
+  settings             Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurants   PlayerRestaurant[]
+  levelProgress PlayerLevelProgress[]
+  upgrades      PlayerUpgrade[]
+  gameSessions  GameSession[]
+}
+
+model Restaurant {
+  id                String  @id
+  name              String
+  description       String
+  unlockRequirement Int     @default(0)
+  playable          Boolean @default(false)
+  sortOrder         Int     @default(0)
+
+  levels   Level[]
+  upgrades RestaurantUpgrade[]
+  players  PlayerRestaurant[]
+  playerUpgrades PlayerUpgrade[]
+}
+
+model PlayerRestaurant {
+  id           String   @id @default(cuid())
+  playerId     String
+  restaurantId String
+  unlockedAt   DateTime @default(now())
+
+  player     PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  restaurant Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, restaurantId])
+}
+
+model Level {
+  id            String @id @default(cuid())
+  restaurantId  String
+  levelNumber   Int
+  name          String
+  revenueTarget Int
+  targetTwoStar Int
+  targetThreeStar Int
+  duration      Int
+  difficulty    Int
+  customers     Int
+  // Full level definition snapshot (menu, spawn rates, objectives …).
+  config        Json
+
+  restaurant Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  progress   PlayerLevelProgress[]
+  sessions   GameSession[]
+
+  @@unique([restaurantId, levelNumber])
+}
+
+model PlayerLevelProgress {
+  id          String   @id @default(cuid())
+  playerId    String
+  levelId     String
+  bestStars   Int      @default(0)
+  bestRevenue Int      @default(0)
+  completed   Boolean  @default(false)
+  attempts    Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  level  Level         @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, levelId])
+}
+
+model RestaurantUpgrade {
+  id           String @id @default(cuid())
+  restaurantId String
+  upgradeType  String
+  level        Int
+  cost         Int
+  description  String @default("")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, upgradeType, level])
+}
+
+model PlayerUpgrade {
+  id           String @id @default(cuid())
+  playerId     String
+  restaurantId String
+  upgradeType  String
+  currentLevel Int    @default(0)
+
+  player     PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  restaurant Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, restaurantId, upgradeType])
+}
+
+enum GameSessionStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+  REJECTED
+  ABANDONED
+}
+
+// One attempt at a level. The seed + upgrade snapshot are fixed by the server
+// when the level starts, so the submitted action log can be replayed exactly.
+model GameSession {
+  id               String            @id @default(cuid())
+  playerId         String
+  levelId          String
+  seed             BigInt
+  upgradesSnapshot Json
+  status           GameSessionStatus @default(ACTIVE)
+  startedAt        DateTime          @default(now())
+  finishedAt       DateTime?
+  revenue          Int?
+  stars            Int?
+  coinsAwarded     Int?
+  result           Json?
+  rejectReason     String?
+
+  player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  level  Level         @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, status])
+}

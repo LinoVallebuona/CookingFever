@@ -1,0 +1,28 @@
+{
+  "name": "sizzle-shift",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sizzle Shift – a free-to-play, full-stack restaurant time-management game",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @sizzle/server & npm run dev --workspace @sizzle/client & wait",
+    "dev:server": "npm run dev --workspace @sizzle/server",
+    "dev:client": "npm run dev --workspace @sizzle/client",
+    "build": "npm run build --workspace @sizzle/server && npm run build --workspace @sizzle/client",
+    "start": "npm run start --workspace @sizzle/server",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:up": "docker compose up -d postgres",
+    "db:migrate": "npm run db:migrate --workspace @sizzle/server",
+    "db:deploy": "npm run db:deploy --workspace @sizzle/server",
+    "db:seed": "npm run db:seed --workspace @sizzle/server",
+    "db:reset": "npm run db:reset --workspace @sizzle/server"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

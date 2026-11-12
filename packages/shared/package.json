@@ -11,9 +11,11 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "balance": "tsx scripts/balance.ts"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
     "typescript": "~5.9",
     "vitest": "^5.1.0"
   }
